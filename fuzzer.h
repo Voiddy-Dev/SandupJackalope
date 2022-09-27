@@ -261,4 +261,7 @@ protected:
   uint64_t last_save_time;
   
   SampleTrie sample_trie;
+
+  char *harness_script;
+  char *service_name;
 };

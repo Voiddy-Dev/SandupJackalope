@@ -122,6 +122,15 @@ void Fuzzer::ParseOptions(int argc, char **argv) {
   add_all_inputs = GetBinaryOption("-add_all_inputs", argc, argv, false);
   
   dump_coverage = GetBinaryOption("-dump_coverage", argc, argv, false);
+
+  harness_script = ArgvToCmd(argc, argv);;
+  if (!harness_script) {
+    FATAL("harness script necessary `-- [HARNESS SCRIPT]`");
+  }
+  service_name = GetOption("-service_name", argc, argv);
+  if (!service_name) {
+    FATAL("service name necessary `-service_name [SERVICE NAME]`");
+  }
 }
 
 void Fuzzer::SetupDirectories() {
@@ -255,7 +264,7 @@ RunResult Fuzzer::RunSampleAndGetCoverage(ThreadContext *tc, Sample *sample, Cov
     }
   }
 
-  RunResult result = tc->instrumentation->Run(tc->target_argc, tc->target_argv, init_timeout, timeout);
+  RunResult result = tc->instrumentation->Attach(harness_script, service_name, init_timeout, timeout);
   tc->instrumentation->GetCoverage(*coverage, true);
 
   // save crashes and hangs immediately when they are detected
@@ -335,7 +344,7 @@ RunResult Fuzzer::TryReproduceCrash(ThreadContext* tc, Sample* sample, uint32_t 
       }
     }
 
-    result = tc->instrumentation->RunWithCrashAnalysis(tc->target_argc, tc->target_argv, init_timeout, timeout);
+    result = tc->instrumentation->AttachWithCrashAnalysis(harness_script, service_name, init_timeout, timeout);
     tc->instrumentation->ClearCoverage();
 
     if (result == CRASH) return result;

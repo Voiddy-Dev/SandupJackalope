@@ -29,6 +29,124 @@ void TinyInstInstrumentation::Init(int argc, char **argv) {
 
   persist = GetBinaryOption("-persist", argc, argv, false);
   num_iterations = GetIntOption("-iterations", argc, argv, 1);
+
+  oldpid = -1;
+}
+
+RunResult TinyInstInstrumentation::AttachWithCrashAnalysis(char * harness_script, char * service_name, uint32_t init_timeout, uint32_t timeout) {
+  // clean process when reproducing crashes
+  instrumentation->Kill();
+  // disable instrumentation when reproducing crashes
+  instrumentation->DisableInstrumentation();
+  RunResult ret = Attach(harness_script, service_name, init_timeout, timeout);
+  instrumentation->Kill();
+  instrumentation->EnableInstrumentation();
+  return ret;
+}
+
+DWORD GetServicePid(char *serviceName)
+{
+  const auto hScm = OpenSCManager(nullptr, nullptr, NULL);
+  const auto hSc = OpenServiceA(hScm, serviceName, SERVICE_QUERY_STATUS);
+
+  SERVICE_STATUS_PROCESS ssp = {};
+  DWORD bytesNeeded = 0;
+  QueryServiceStatusEx(hSc, SC_STATUS_PROCESS_INFO, reinterpret_cast<LPBYTE>(&ssp), sizeof(ssp), &bytesNeeded);
+
+  CloseServiceHandle(hSc);
+  CloseServiceHandle(hScm);
+
+  return ssp.dwProcessId;
+}
+
+DWORD FindServicePID(char *service_name, int oldpid)
+{
+  DWORD pid;
+  while(1) {
+    pid = GetServicePid(service_name);
+    if (pid && pid != 0 && oldpid != pid) return pid;
+    WARN('Could not find target process, retrying after timeout');
+    Sleep(10);
+  }
+}
+
+RunResult TinyInstInstrumentation::Attach(char *harness_script, char *service_name, uint32_t init_timeout, uint32_t timeout) {
+  DebuggerStatus status;
+  RunResult ret = OTHER_ERROR;
+
+  if (instrumentation->IsTargetFunctionDefined()) {
+    FATAL("SANDUP - Target function should not be defined...");
+  }
+
+  if (instrumentation->IsTargetFunctionDefined()) {
+    if (cur_iteration == num_iterations) {
+      instrumentation->Kill();
+      cur_iteration = 0;
+    }
+  }
+  
+  // else clear only when the target function is reached
+  if (!instrumentation->IsTargetFunctionDefined()) {
+    instrumentation->ClearCoverage();
+  }
+
+  uint32_t timeout1 = timeout;
+  if (instrumentation->IsTargetFunctionDefined()) {
+    timeout1 = init_timeout;
+  }
+
+  if (instrumentation->IsTargetAlive() && persist) {
+    status = instrumentation->Continue(timeout1);
+  } else {
+    instrumentation->Kill();
+    cur_iteration = 0;
+    Sleep(init_timeout);
+    DWORD pid;
+    while (1) {
+      if (oldpid != -1) pid = FindServicePID(service_name, oldpid);
+      else pid = GetServicePid(service_name);
+
+      if (pid) break;
+      WARN('Could not find target process, retrying after timeout - oldpid --> -1');
+      Sleep(init_timeout);
+    }
+    printf("SANDUP - Old PID: %d - Service PID: %d\n", oldpid, pid);
+    oldpid = pid;
+    status = instrumentation->Attach(pid, timeout1);
+  }
+
+  switch (status) {
+  case DEBUGGER_CRASHED:
+    ret = CRASH;
+    instrumentation->Kill();
+    break;
+  case DEBUGGER_HANGED:
+    ret = HANG;
+    instrumentation->Kill();
+    break;
+  case DEBUGGER_PROCESS_EXIT:
+    ret = OK;
+    if (instrumentation->IsTargetFunctionDefined()) {
+      WARN("Process exit during target function\n");
+      ret = HANG;
+      FATAL("SANDUP - Target function should not be defined...");
+    }
+    break;
+  case DEBUGGER_TARGET_END:
+    if (instrumentation->IsTargetFunctionDefined()) {
+      ret = OK;
+      cur_iteration++;
+      FATAL("SANDUP - Target function should not be defined...");
+    } else {
+      FATAL("Unexpected status received from the debugger\n");
+    }
+    break;
+  default:
+    FATAL("Unexpected status received from the debugger\n");
+    break;
+  }
+
+  return ret;
 }
 
 RunResult TinyInstInstrumentation::Run(int argc, char **argv, uint32_t init_timeout, uint32_t timeout) {

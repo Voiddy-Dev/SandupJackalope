@@ -49,5 +49,6 @@ protected:
   bool persist;
   int num_iterations;
   int cur_iteration;
+  int oldpid;
 };
 
