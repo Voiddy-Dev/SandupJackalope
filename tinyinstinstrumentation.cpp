@@ -83,55 +83,39 @@ RunResult TinyInstInstrumentation::Attach(char *service_name, uint32_t init_time
     FATAL("SANDUP - Target function should not be defined...");
   }
 
-  if (instrumentation->IsTargetFunctionDefined())
-  {
-    if (cur_iteration == num_iterations)
-    {
-      instrumentation->Kill();
-      cur_iteration = 0;
-    }
-  }
-
   // else clear only when the target function is reached
-  if (!instrumentation->IsTargetFunctionDefined())
-  {
-    instrumentation->ClearCoverage();
-  }
+  instrumentation->ClearCoverage();
 
   uint32_t timeout1 = timeout;
-  if (instrumentation->IsTargetFunctionDefined())
-  {
-    timeout1 = init_timeout;
-  }
 
-  if (instrumentation->IsTargetAlive() && persist)
+  // if (instrumentation->IsTargetAlive() && persist)
+  // {
+  //   status = instrumentation->Continue(timeout1);
+  // }
+  // else
+  // {
+  instrumentation->Kill();
+  cur_iteration = 0;
+  Sleep(init_timeout);
+  DWORD pid;
+  while (1)
   {
-    status = instrumentation->Continue(timeout1);
-  }
-  else
-  {
-    instrumentation->Kill();
-    cur_iteration = 0;
+    if (oldpid != -1)
+      pid = FindServicePID(service_name, oldpid);
+    else
+      pid = GetServicePid(service_name);
+
+    if (pid)
+      break;
+    WARN("Could not find target process, retrying after timeout - oldpid --> -1");
     Sleep(init_timeout);
-    DWORD pid;
-    while (1)
-    {
-      if (oldpid != -1)
-        pid = FindServicePID(service_name, oldpid);
-      else
-        pid = GetServicePid(service_name);
-
-      if (pid)
-        break;
-      WARN("Could not find target process, retrying after timeout - oldpid --> -1");
-      Sleep(init_timeout);
-    }
-    printf("SANDUP - Old PID: %d - Service PID: %d\n", oldpid, pid);
-    oldpid = pid;
-
-    // Attach
-    status = instrumentation->Attach(pid, timeout1);
   }
+  printf("SANDUP - Old PID: %d - Service PID: %d\n", oldpid, pid);
+  oldpid = pid;
+
+  // Attach
+  status = instrumentation->Attach(pid, timeout1);
+  // }
 
   switch (status)
   {
@@ -140,8 +124,9 @@ RunResult TinyInstInstrumentation::Attach(char *service_name, uint32_t init_time
     instrumentation->Kill();
     break;
   case DEBUGGER_HANGED:
-    ret = HANG;
-    instrumentation->Kill();
+    // ret = HANG;
+    // instrumentation->Kill();
+    ret = OK;
     break;
   case DEBUGGER_PROCESS_EXIT:
     ret = OK;

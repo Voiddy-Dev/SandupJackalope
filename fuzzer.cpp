@@ -303,13 +303,15 @@ RunResult Fuzzer::RunSampleAndGetCoverage(ThreadContext *tc, Sample *sample, Cov
       FATAL("Repeatedly failed to deliver sample");
     }
   }
-  else
-  {
-    WARN("Deli");
-  }
+
   RunResult result = tc->instrumentation->Attach(service_name, init_timeout, timeout);
   tc->instrumentation->GetCoverage(*coverage, true);
 
+  for (auto iter = coverage->begin(); iter != coverage->end(); iter++)
+  {
+    printf("SANDUP: Found %zd new offsets in %s\n", iter->offsets.size(), iter->module_name.c_str());
+  }
+  // printf("SANDUP - RunSampleAndGetCoverage - result: %d\n", result);
   // save crashes and hangs immediately when they are detected
   if (result == CRASH)
   {
@@ -485,7 +487,6 @@ RunResult Fuzzer::RunSample(ThreadContext *tc, Sample *sample, int *has_new_cove
   Coverage initialCoverage;
 
   RunResult result = RunSampleAndGetCoverage(tc, sample, &initialCoverage, init_timeout, timeout);
-
   if (result != OK)
     return result;
 
