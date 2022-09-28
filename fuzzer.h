@@ -262,6 +262,5 @@ protected:
   
   SampleTrie sample_trie;
 
-  char *harness_script;
   char *service_name;
 };

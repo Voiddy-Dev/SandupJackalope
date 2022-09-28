@@ -24,14 +24,18 @@ limitations under the License.
 
 class LiteCov;
 
-class TinyInstInstrumentation : public Instrumentation {
+class TinyInstInstrumentation : public Instrumentation
+{
 public:
   ~TinyInstInstrumentation();
 
   void Init(int argc, char **argv) override;
 
-  RunResult Run(int argc, char** argv, uint32_t init_timeout, uint32_t timeout) override;
-  RunResult RunWithCrashAnalysis(int argc, char** argv, uint32_t init_timeout, uint32_t timeout) override;
+  RunResult Run(int argc, char **argv, uint32_t init_timeout, uint32_t timeout) override;
+  RunResult RunWithCrashAnalysis(int argc, char **argv, uint32_t init_timeout, uint32_t timeout) override;
+
+  RunResult Attach(char *service_name, uint32_t init_timeout, uint32_t timeout) override;
+  RunResult AttachWithCrashAnalysis(char *service_name, uint32_t init_timeout, uint32_t timeout) override;
 
   void CleanTarget() override;
 
@@ -45,10 +49,9 @@ public:
   std::string GetCrashName() override;
 
 protected:
-  LiteCov * instrumentation;
+  LiteCov *instrumentation;
   bool persist;
   int num_iterations;
   int cur_iteration;
   int oldpid;
 };
-
