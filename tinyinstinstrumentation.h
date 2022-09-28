@@ -34,8 +34,8 @@ public:
   RunResult Run(int argc, char **argv, uint32_t init_timeout, uint32_t timeout) override;
   RunResult RunWithCrashAnalysis(int argc, char **argv, uint32_t init_timeout, uint32_t timeout) override;
 
-  RunResult Attach(char *service_name, uint32_t init_timeout, uint32_t timeout) override;
-  RunResult AttachWithCrashAnalysis(char *service_name, uint32_t init_timeout, uint32_t timeout) override;
+  RunResult Attach(int argc, char **argv, char *service_name, uint32_t init_timeout, uint32_t timeout) override;
+  RunResult AttachWithCrashAnalysis(int argc, char **argv, char *service_name, uint32_t init_timeout, uint32_t timeout) override;
 
   void CleanTarget() override;
 

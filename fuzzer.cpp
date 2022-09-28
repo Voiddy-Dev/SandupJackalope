@@ -304,13 +304,13 @@ RunResult Fuzzer::RunSampleAndGetCoverage(ThreadContext *tc, Sample *sample, Cov
     }
   }
 
-  RunResult result = tc->instrumentation->Attach(service_name, init_timeout, timeout);
+  RunResult result = tc->instrumentation->Attach(tc->target_argc, tc->target_argv, service_name, init_timeout, timeout);
   tc->instrumentation->GetCoverage(*coverage, true);
 
-  for (auto iter = coverage->begin(); iter != coverage->end(); iter++)
-  {
-    printf("SANDUP: Found %zd new offsets in %s\n", iter->offsets.size(), iter->module_name.c_str());
-  }
+  // for (auto iter = coverage->begin(); iter != coverage->end(); iter++)
+  // {
+  //   printf("SANDUP: Found %zd new offsets in %s\n", iter->offsets.size(), iter->module_name.c_str());
+  // }
   // printf("SANDUP - RunSampleAndGetCoverage - result: %d\n", result);
   // save crashes and hangs immediately when they are detected
   if (result == CRASH)
@@ -406,7 +406,7 @@ RunResult Fuzzer::TryReproduceCrash(ThreadContext *tc, Sample *sample, uint32_t 
       }
     }
 
-    result = tc->instrumentation->AttachWithCrashAnalysis(service_name, init_timeout, timeout);
+    result = tc->instrumentation->AttachWithCrashAnalysis(tc->target_argc, tc->target_argv, service_name, init_timeout, timeout);
     tc->instrumentation->ClearCoverage();
 
     if (result == CRASH)
@@ -1201,7 +1201,7 @@ SampleDelivery *Fuzzer::CreateSampleDelivery(int argc, char **argv, ThreadContex
     string outfile = DirJoin(delivery_dir, string("input_") + std::to_string(tc->thread_id) + extension);
     ReplaceTargetCmdArg(tc, "@@", outfile.c_str());
 
-    printf("SANDUP - outfile %s\n", outfile.c_str());
+    // printf("SANDUP - outfile %s\n", outfile.c_str());
 
     FileSampleDelivery *sampleDelivery = new FileSampleDelivery();
     sampleDelivery->Init(argc, argv);

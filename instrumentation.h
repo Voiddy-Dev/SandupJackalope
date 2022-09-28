@@ -32,10 +32,10 @@ public:
     return Run(argc, argv, init_timeout, timeout);
   }
 
-  virtual RunResult Attach(char *service_name, uint32_t init_timeout, uint32_t timeout) = 0;
+  virtual RunResult Attach(int argc, char **argv, char *service_name, uint32_t init_timeout, uint32_t timeout) = 0;
 
-  virtual RunResult AttachWithCrashAnalysis(char *service_name, uint32_t init_timeout, uint32_t timeout) {
-    return Attach(service_name, init_timeout, timeout);
+  virtual RunResult AttachWithCrashAnalysis(int argc, char **argv, char *service_name, uint32_t init_timeout, uint32_t timeout) {
+    return Attach(argc, argv, service_name, init_timeout, timeout);
   }
 
   virtual void CleanTarget() = 0;

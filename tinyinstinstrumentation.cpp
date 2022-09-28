@@ -33,13 +33,13 @@ void TinyInstInstrumentation::Init(int argc, char **argv)
   oldpid = -1;
 }
 
-RunResult TinyInstInstrumentation::AttachWithCrashAnalysis(char *service_name, uint32_t init_timeout, uint32_t timeout)
+RunResult TinyInstInstrumentation::AttachWithCrashAnalysis(int argc, char **argv, char *service_name, uint32_t init_timeout, uint32_t timeout)
 {
   // clean process when reproducing crashes
   instrumentation->Kill();
   // disable instrumentation when reproducing crashes
   instrumentation->DisableInstrumentation();
-  RunResult ret = Attach(service_name, init_timeout, timeout);
+  RunResult ret = Attach(argc, argv, service_name, init_timeout, timeout);
   instrumentation->Kill();
   instrumentation->EnableInstrumentation();
   return ret;
@@ -73,10 +73,33 @@ DWORD FindServicePID(char *service_name, int oldpid)
   }
 }
 
-RunResult TinyInstInstrumentation::Attach(char *service_name, uint32_t init_timeout, uint32_t timeout)
+struct sys_t_arg {
+  const char *cmd;
+  int timeout;
+};
+
+DWORD WINAPI sys_thread_func(void *arg)
+{
+    sys_t_arg *params = (sys_t_arg *)arg;
+    Sleep(params->timeout);
+    system(params->cmd);
+    // printf(".");
+    return 0;
+}
+
+
+RunResult TinyInstInstrumentation::Attach(int argc, char **argv, char *service_name, uint32_t init_timeout, uint32_t timeout)
 {
   DebuggerStatus status;
   RunResult ret = OTHER_ERROR;
+
+  std::string cmd;
+  for (int i = 0; i < argc; i++)
+  {
+    // printf("SANDUP - argv[%d] is %s\n", i, argv[i]);
+    cmd.append(argv[i]);
+    cmd.append(" ");
+  }
 
   if (instrumentation->IsTargetFunctionDefined())
   {
@@ -110,11 +133,16 @@ RunResult TinyInstInstrumentation::Attach(char *service_name, uint32_t init_time
     WARN("Could not find target process, retrying after timeout - oldpid --> -1");
     Sleep(init_timeout);
   }
-  printf("SANDUP - Old PID: %d - Service PID: %d\n", oldpid, pid);
+  // printf("SANDUP - Old PID: %d - Service PID: %d\n", oldpid, pid);
   oldpid = pid;
 
-  // Attach
+  // printf("Final command: %s\n", cmd.c_str());
+  sys_t_arg torun;
+  torun.timeout = timeout1 / 5; // good enough?
+  torun.cmd = cmd.c_str();
+  HANDLE t_hdl = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)sys_thread_func, &torun, 0, NULL);
   status = instrumentation->Attach(pid, timeout1);
+  if (t_hdl) CloseHandle(t_hdl);
   // }
 
   switch (status)
